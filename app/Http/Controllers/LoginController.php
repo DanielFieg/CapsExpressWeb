@@ -24,13 +24,32 @@ class LoginController extends Controller{
         if (Auth::attempt(['email' => $usuario, 'password' => $senha])) {
             return response()->json([
                 'success' => true,
-                'redirectUrl' => route('cadastroReceitaView')
+                'redirectUrl' => route('home')
             ]);
         } else {
             return response()->json([
                 'success' => false
             ]);
         }
+    }
+
+    public function register(Request $request)
+    {
+
+        // Crie um novo usuário com os dados fornecidos
+        $user = new User;
+        $user->name = $request->input('name');
+        $user->email = $request->input('email');
+        $user->password = bcrypt($request->input('password')); // Use bcrypt para hash da senha
+
+        // Salve o novo usuário no banco de dados
+        $user->save();
+
+        // Se o usuário foi criado com sucesso, você pode retornar uma resposta adequada
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuário criado com sucesso!',
+        ]);
     }
     
 }

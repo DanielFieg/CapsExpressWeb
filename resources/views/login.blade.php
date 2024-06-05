@@ -34,10 +34,10 @@
                         Login to continue
                     </span>
                     
-                    <div class="wrap-input100 validate-input" data-validate="Valid email is required: ex@abc.xyz">
+                    <div class="wrap-input100 validate-input">
                         <input class="input100" type="text" v-model="login.email" name="email">
                         <span class="focus-input100"></span>
-                        <span class="label-input100">Email</span>
+                        <span class="label-input100">Username</span>
                     </div>
                     
                     <div class="wrap-input100 validate-input" data-validate="Password is required">
@@ -112,7 +112,22 @@
                     .catch(error => {
                         console.error(error);
                     });
-                }
+                },
+                // register() {
+				// 	axios.post('/register', {
+				// 		name: 'CapsExpress',
+				// 		email: 'capsexpress',
+				// 		password: 'admincaps'
+				// 	})
+				// 	.then(function (response) {
+				// 		// Lida com a resposta do servidor
+				// 		console.log(response.data);
+				// 	})
+				// 	.catch(function (error) {
+				// 		// Lida com erros
+				// 		console.error(error);
+				// 	});
+				// }
             }
         });
     </script>
