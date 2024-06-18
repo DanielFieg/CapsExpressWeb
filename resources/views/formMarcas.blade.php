@@ -9,6 +9,14 @@
   <link rel="stylesheet" href="css/styles.min.css" />
 </head>
 
+<style>
+  .block-ui {
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.5;
+  }
+</style>
+
 <body>
   <!--  Body Wrapper -->
   <div class="page-wrapper" id="main-wrapper" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full"
@@ -22,7 +30,7 @@
           <div class="close-btn d-xl-none d-block sidebartoggler cursor-pointer" id="sidebarCollapse">
             <i class="ti ti-x fs-8"></i>
           </div>
-        </div>        
+        </div>
 
         <!-- Sidebar navigation-->
         <nav class="sidebar-nav scroll-sidebar" data-simplebar="">
@@ -56,7 +64,7 @@
               <span class="hide-menu">AUTH</span>
             </li>
             <li class="sidebar-item">
-              <a class="sidebar-link" href="./authentication-login.html" aria-expanded="false">
+              <a class="sidebar-link"  href="{{ route('logout') }}" aria-expanded="false" >
                 <span>
                   <i class="ti ti-login"></i>
                 </span>
@@ -98,15 +106,17 @@
               <h5 class="card-title fw-semibold mb-4">PESQUISAR MARCAS</h5>
               <div class="card">
                 <div class="card-body">
-                  <form class="position-relative">
-                    <button type="submit" class="btn btn-primary position-absolute top-0 end-0 translate-middle-y ti ti-plus">
+                  <form id="searchForm" class="position-relative" @submit.prevent="submitSearch">
+                    <button @click.prevent="openSweetAlert" type="button"
+                      class="btn btn-primary position-absolute top-0 end-0 translate-middle-y ti ti-plus">
                       <i class="fa fa-search"></i>
                     </button>
                     <div class="mb-3">
-                      <label for="disabledSelect" class="form-label">Selecione uma Marca</label>
-                      <select id="marcaSelect" class="form-select">
-                        <option>Disabled select</option>
-                      </select>
+                        <label for="disabledSelect" class="form-label">Selecione uma Marca</label>
+                        <select id="marcaSelect" class="form-select" v-model="selectedMarca">
+                          <option value="">Selecione uma Marca</option>
+                          <option v-for="marca in marcas" :value="marca">@{{ marca.marca}}</option>
+                      </select>                      
                     </div>
                     <button type="submit" class="btn btn-primary">Pesquisar</button>
                   </form>
@@ -118,11 +128,129 @@
       </div>
     </div>
   </div>
+
   <script src="libs/jquery/dist/jquery.min.js"></script>
   <script src="libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/sidebarmenu.js"></script>
   <script src="js/app.min.js"></script>
+  <!-- Load Vue.js -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <!-- Load SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+
+<!-- Custom Script -->
+<script>
+  new Vue({
+    el: '#main-wrapper',
+    data: {
+      marcas: [], // Array para armazenar as marcas
+      selectedMarca: null, // Propriedade para armazenar a marca selecionada
+      loadResult: 'no',
+      loadingSearch: false // Estado para controlar o carregamento da pesquisa
+    },
+    methods: {
+      openSweetAlert() {
+        Swal.fire({
+          title: 'Cadastro de Marca',
+          text: 'Digite o nome da marca:',
+          input: 'text',
+          inputAttributes: {
+            autocapitalize: 'off'
+          },
+          showCancelButton: true,
+          confirmButtonText: 'Cadastrar',
+          cancelButtonText: 'Cancelar',
+          showLoaderOnConfirm: true,
+          preConfirm: (marca) => {
+            // Enviar uma solicitação AJAX para cadastrar a marca
+            return axios.post('/addmarcas', { marca })
+              .then(response => {
+                if (!response.data.success) {
+                  throw new Error(response.data.message || 'Erro ao cadastrar a marca');
+                }
+                return response.data.marca;
+              })
+              .catch(error => {
+                Swal.showValidationMessage(
+                  `Erro ao cadastrar: ${error.message}`
+                );
+              });
+          },
+          allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+          if (result.isConfirmed) {
+            Swal.fire(
+              'Marca cadastrada!',
+              'A marca foi cadastrada com sucesso.',
+              'success'
+            );
+            this.listarMarcas();
+          }
+        });
+      },
+      listarMarcas() {
+        axios.get('/listMarcas')
+          .then(response => {
+            // Verifique se a resposta tem dados válidos
+            if (response.data && Array.isArray(response.data)) {
+              // Atribua os dados diretamente à propriedade marcas
+              this.marcas = response.data;
+              console.log(this.marcas);
+            } else {
+              console.error('Resposta da API inválida:', response);
+            }
+          })
+          .catch(error => {
+            console.error('Erro ao obter marcas:', error);
+          });
+      },
+      submitSearch() {
+        // Impedir ações enquanto a pesquisa está em andamento
+        if (this.loadingSearch) return;
+
+        this.loadingSearch = true; // Ativar o estado de carregamento
+
+        axios.get('/searchMarcas', { params: { id: this.selectedMarca.id, marca: this.selectedMarca.marca } })
+          .then(response => {
+            // Verifique se a resposta tem dados válidos
+            this.loadResult = 'success';
+            console.log(response.data.message);
+          })
+          .catch(error => {
+            console.error('Erro ao obter marcas:', error);
+          })
+          .finally(() => {
+            this.loadingSearch = false; // Desativar o estado de carregamento após a conclusão da pesquisa
+          });
+      },
+    },
+    mounted() {
+      this.listarMarcas();
+    },
+    watch: {
+      loadingSearch(newValue) {
+        if (newValue) {
+          Swal.fire({
+            title: 'Carregando...',
+            text: 'Aguarde enquanto processamos sua solicitação.',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+              Swal.showLoading();
+              document.body.classList.add('block-ui');
+            }
+          });
+        } else {
+          Swal.close();
+          document.body.classList.remove('block-ui');
+        }
+      }
+    }
+  });
+</script>
+
 </body>
 
 </html>
-

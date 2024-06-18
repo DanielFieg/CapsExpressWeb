@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Log;
 
 class LoginController extends Controller{
     public function loginView(){
@@ -13,6 +14,7 @@ class LoginController extends Controller{
     }
 
     public function auth(Request $request) {
+        Log::info($request);
         $usuario = $request->input('email');
         $senha = $request->input('password');
     
@@ -38,7 +40,7 @@ class LoginController extends Controller{
 
         // Crie um novo usuário com os dados fornecidos
         $user = new User;
-        $user->name = $request->input('name');
+        $user->name = $request->input('email');
         $user->email = $request->input('email');
         $user->password = bcrypt($request->input('password')); // Use bcrypt para hash da senha
 
@@ -50,6 +52,11 @@ class LoginController extends Controller{
             'success' => true,
             'message' => 'Usuário criado com sucesso!',
         ]);
+    }
+
+    public function logout(){
+        Auth::logout();
+        return redirect()->route('login');
     }
     
 }
