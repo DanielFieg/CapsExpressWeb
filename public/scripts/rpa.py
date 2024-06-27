@@ -267,9 +267,9 @@ class Scrappy:
 
             # Criar um DataFrame do Pandas com os dados coletados
             df = pd.DataFrame({
-                'Marca': [self.opcao_selecionada] * len(links_encontrados),
-                'Link': links_encontrados,
-                'Palavra Proibida': palavras_encontradas
+                'marca': [self.opcao_selecionada] * len(links_encontrados),
+                'link': links_encontrados,
+                'palavra_proibida': palavras_encontradas
             })
 
             return df

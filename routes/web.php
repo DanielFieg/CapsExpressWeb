@@ -16,5 +16,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/listMarcas', [AdminController::class, 'listMarcas'])->name('list.marcas');
     Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/searchMarcas', [AdminController::class, 'searchMarcas'])->name('search.marcas');
-    
+    Route::get('/relatorio', [AdminController::class, 'relMarcas'])->name('rel.marcas');
+    Route::get('/getMarcas', [AdminController::class, 'getMarcas'])->name('get.marcas');
 });

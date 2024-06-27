@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class SearchResult extends Model
 {
     protected $table = 'resultadoPesquisa';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'marca',

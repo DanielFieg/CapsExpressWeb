@@ -114,21 +114,7 @@
                         console.error(error);
                     });
                 },
-                // register() {
-				// 	axios.post('/register', {
-				// 		name: 'CapsExpress',
-				// 		email: 'capsexpress',
-				// 		password: 'admincaps'
-				// 	})
-				// 	.then(function (response) {
-				// 		// Lida com a resposta do servidor
-				// 		console.log(response.data);
-				// 	})
-				// 	.catch(function (error) {
-				// 		// Lida com erros
-				// 		console.error(error);
-				// 	});
-				// }
+
             }
         });
     </script>

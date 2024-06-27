@@ -7,15 +7,14 @@
   <title>CapsExpress</title>
   <link rel="shortcut icon" type="image/png" href="" />
   <link rel="stylesheet" href="css/styles.min.css" />
+  <style>
+    .block-ui {
+      pointer-events: none;
+      user-select: none;
+      opacity: 0.5;
+    }
+  </style>
 </head>
-
-<style>
-  .block-ui {
-    pointer-events: none;
-    user-select: none;
-    opacity: 0.5;
-  }
-</style>
 
 <body>
   <!--  Body Wrapper -->
@@ -59,6 +58,14 @@
                 <span class="hide-menu">Pesquisar Marcas</span>
               </a>
             </li>
+            <li class="sidebar-item">
+              <a class="sidebar-link" href="{{ route('rel.marcas') }}" aria-expanded="false">
+                <span>
+                  <i class="ti ti-article"></i>
+                </span>
+                <span class="hide-menu">Relatório</span>
+              </a>
+            </li>
             <li class="nav-small-cap">
               <i class="ti ti-dots nav-small-cap-icon fs-4"></i>
               <span class="hide-menu">AUTH</span>
@@ -69,14 +76,6 @@
                   <i class="ti ti-login"></i>
                 </span>
                 <span class="hide-menu">Login</span>
-              </a>
-            </li>
-            <li class="sidebar-item">
-              <a class="sidebar-link" href="./authentication-register.html" aria-expanded="false">
-                <span>
-                  <i class="ti ti-user-plus"></i>
-                </span>
-                <span class="hide-menu">Register</span>
               </a>
             </li>
           </ul>
@@ -112,16 +111,43 @@
                       <i class="fa fa-search"></i>
                     </button>
                     <div class="mb-3">
-                        <label for="disabledSelect" class="form-label">Selecione uma Marca</label>
-                        <select id="marcaSelect" class="form-select" v-model="selectedMarca">
-                          <option value="">Selecione uma Marca</option>
-                          <option v-for="marca in marcas" :value="marca">@{{ marca.marca}}</option>
-                      </select>                      
+                      <label for="disabledSelect" class="form-label">Selecione uma Marca</label>
+                      <select id="marcaSelect" class="form-select" v-model="selectedMarca">
+                        <option value="">Selecione uma Marca</option>
+                        <option v-for="marca in marcas" :key="marca.id" :value="marca">@{{ marca.marca }}</option>
+                      </select>
                     </div>
-                    <button type="submit" class="btn btn-primary">Pesquisar</button>
+                    <button v-if="searchButtonVisible" type="submit" class="btn btn-primary">Pesquisar</button>
+                    <p v-if="!searchButtonVisible" class="alert alert-warning">@{{ limitReachedMessage }}</p>
                   </form>
                 </div>
               </div>
+            </div>
+          </div>
+          <!-- Tabela de Resultados -->
+          <div class="card" v-if="searchResults.length || noResultsMessage">
+            <div class="card-body">
+              <h5 class="card-title fw-semibold mb-4">RESULTADOS</h5>
+              <div v-if="noResultsMessage" class="alert alert-warning">
+                @{{ noResultsMessage }}
+              </div>
+              <div v-else class="table-responsive">
+                <table class="table table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Link</th>
+                      <th>Palavra Proibida</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="result in searchResults" :key="result.id">
+                      <td>@{{ result.link }}</td>
+                      <td>@{{ result.palavra_proibida }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <button class="btn btn-primary" @click="exportToExcel">Exportar para Excel</button>
             </div>
           </div>
         </div>
@@ -138,100 +164,97 @@
   <!-- Load SweetAlert2 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <!-- Load SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 
-<!-- Custom Script -->
-<script>
-  new Vue({
-    el: '#main-wrapper',
-    data: {
-      marcas: [], // Array para armazenar as marcas
-      selectedMarca: null, // Propriedade para armazenar a marca selecionada
-      loadResult: 'no',
-      loadingSearch: false // Estado para controlar o carregamento da pesquisa
-    },
-    methods: {
-      openSweetAlert() {
-        Swal.fire({
-          title: 'Cadastro de Marca',
-          text: 'Digite o nome da marca:',
-          input: 'text',
-          inputAttributes: {
-            autocapitalize: 'off'
-          },
-          showCancelButton: true,
-          confirmButtonText: 'Cadastrar',
-          cancelButtonText: 'Cancelar',
-          showLoaderOnConfirm: true,
-          preConfirm: (marca) => {
-            // Enviar uma solicitação AJAX para cadastrar a marca
-            return axios.post('/addmarcas', { marca })
-              .then(response => {
-                if (!response.data.success) {
-                  throw new Error(response.data.message || 'Erro ao cadastrar a marca');
-                }
-                return response.data.marca;
-              })
-              .catch(error => {
-                Swal.showValidationMessage(
-                  `Erro ao cadastrar: ${error.message}`
-                );
-              });
-          },
-          allowOutsideClick: () => !Swal.isLoading()
-        }).then((result) => {
-          if (result.isConfirmed) {
-            Swal.fire(
-              'Marca cadastrada!',
-              'A marca foi cadastrada com sucesso.',
-              'success'
-            );
-            this.listarMarcas();
-          }
-        });
+  <!-- Custom Script -->
+  <script>
+    new Vue({
+      el: '#main-wrapper',
+      data: {
+        marcas: [], // Array para armazenar as marcas
+        selectedMarca: null, // Propriedade para armazenar a marca selecionada
+        searchResults: [], // Armazena os resultados da pesquisa
+        noResultsMessage: '', // Mensagem para quando não há resultados
+        loadingSearch: false, // Estado para controlar o carregamento da pesquisa
+        searchButtonVisible: true, // controla a visibilidade do botão "Pesquisar"
+        limitReachedMessage: '', // mensagem a ser exibida quando o limite é atingido
       },
-      listarMarcas() {
-        axios.get('/listMarcas')
-          .then(response => {
-            // Verifique se a resposta tem dados válidos
-            if (response.data && Array.isArray(response.data)) {
-              // Atribua os dados diretamente à propriedade marcas
-              this.marcas = response.data;
-              console.log(this.marcas);
-            } else {
-              console.error('Resposta da API inválida:', response);
+      methods: {
+        openSweetAlert() {
+          Swal.fire({
+            title: 'Cadastro de Marca',
+            text: 'Digite o nome da marca:',
+            input: 'text',
+            inputAttributes: {
+              autocapitalize: 'off'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Cadastrar',
+            cancelButtonText: 'Cancelar',
+            showLoaderOnConfirm: true,
+            preConfirm: (marca) => {
+              // Enviar uma solicitação AJAX para cadastrar a marca
+              return axios.post('/addmarcas', { marca })
+                .then(response => {
+                  if (!response.data.success) {
+                    throw new Error(response.data.message || 'Erro ao cadastrar a marca');
+                  }
+                  return response.data.marca;
+                })
+                .catch(error => {
+                  Swal.showValidationMessage(
+                    `Erro ao cadastrar: ${error.message}`
+                  );
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+          }).then((result) => {
+            if (result.isConfirmed) {
+              Swal.fire(
+                'Marca cadastrada!',
+                'A marca foi cadastrada com sucesso.',
+                'success'
+              );
+              this.listarMarcas();
             }
-          })
-          .catch(error => {
-            console.error('Erro ao obter marcas:', error);
           });
-      },
-      submitSearch() {
-        // Impedir ações enquanto a pesquisa está em andamento
-        if (this.loadingSearch) return;
+        },
+        listarMarcas() {
+          axios.get('/listMarcas')
+            .then(response => {
+              // Verifique se a resposta tem dados válidos
+              if (response.data && Array.isArray(response.data)) {
+                // Atribua os dados diretamente à propriedade marcas
+                this.marcas = response.data;
+                console.log(this.marcas);
+              } else {
+                console.error('Resposta da API inválida:', response);
+              }
+            })
+            .catch(error => {
+              console.error('Erro ao obter marcas:', error);
+            });
+        },
+        submitSearch() {
+          // Verificar se uma marca foi selecionada
+          if (!this.selectedMarca) {
+            Swal.fire({
+              title: 'Erro',
+              text: 'Por favor, selecione uma marca antes de pesquisar.',
+              icon: 'error',
+              confirmButtonText: 'Ok'
+            });
+            return; // Impedir a execução da pesquisa
+          }
 
-        this.loadingSearch = true; // Ativar o estado de carregamento
+          // Impedir ações enquanto a pesquisa está em andamento
+          if (this.loadingSearch) return;
 
-        axios.get('/searchMarcas', { params: { id: this.selectedMarca.id, marca: this.selectedMarca.marca } })
-          .then(response => {
-            // Verifique se a resposta tem dados válidos
-            this.loadResult = 'success';
-            console.log(response.data.message);
-          })
-          .catch(error => {
-            console.error('Erro ao obter marcas:', error);
-          })
-          .finally(() => {
-            this.loadingSearch = false; // Desativar o estado de carregamento após a conclusão da pesquisa
-          });
-      },
-    },
-    mounted() {
-      this.listarMarcas();
-    },
-    watch: {
-      loadingSearch(newValue) {
-        if (newValue) {
+          this.loadingSearch = true; // Ativar o estado de carregamento
+          this.errorLimitReached = false; // Reiniciar a variável de erro
+
           Swal.fire({
             title: 'Carregando...',
             text: 'Aguarde enquanto processamos sua solicitação.',
@@ -242,14 +265,72 @@
               document.body.classList.add('block-ui');
             }
           });
-        } else {
-          Swal.close();
-          document.body.classList.remove('block-ui');
+
+          axios.get('/searchMarcas', {
+              params: {
+                id: this.selectedMarca.id,
+                marca: this.selectedMarca.marca
+              }
+            })
+            .then(response => {
+              if (response.data && Array.isArray(response.data)) {
+                this.searchResults = response.data; // Atualize a tabela com os resultados da pesquisa
+                this.noResultsMessage = ''; // Limpe a mensagem de não resultados
+                console.log(this.searchResults);
+              } else if (response.data && response.data.message) {
+                // Caso a API retorne uma mensagem de "Nenhum dado encontrado"
+                this.searchResults = []; // Limpe os resultados anteriores
+                this.noResultsMessage = response.data.message; // Exiba a mensagem de não resultados
+                console.log(response.data.message);
+              } else {
+                console.error('Resposta da API inválida:', response);
+              }
+            })
+            .catch(error => {
+              console.error('Erro ao obter marcas:', error);
+              if (error.response && error.response.status === 429) {
+                // Se o status for 429 (limite de pesquisas atingido), definir o erro
+                this.limitReachedMessage = 'Você atingiu o limite de 3 pesquisas por hora. Tente novamente mais tarde.';
+                this.searchButtonVisible = false; // Ocultar o botão de pesquisa
+              }
+            })
+            .finally(() => {
+              this.loadingSearch = false; // Desativar o estado de carregamento após a conclusão da pesquisa
+              Swal.close(); // Fechar o SweetAlert após a conclusão
+              document.body.classList.remove('block-ui');
+            });
+        },
+        exportToExcel() {
+          const worksheet = XLSX.utils.json_to_sheet(this.searchResults);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
+          XLSX.writeFile(workbook, "Resultados.xlsx");
+        },
+      },
+      mounted() {
+        this.listarMarcas();
+      },
+      watch: {
+        loadingSearch(newValue) {
+          if (newValue) {
+            Swal.fire({
+              title: 'Carregando...',
+              text: 'Aguarde enquanto processamos sua solicitação.',
+              allowOutsideClick: false,
+              allowEscapeKey: false,
+              didOpen: () => {
+                Swal.showLoading();
+                document.body.classList.add('block-ui');
+              }
+            });
+          } else {
+            Swal.close();
+            document.body.classList.remove('block-ui');
+          }
         }
       }
-    }
-  });
-</script>
+    });
+  </script>
 
 </body>
 
