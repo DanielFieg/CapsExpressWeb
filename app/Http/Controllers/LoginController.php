@@ -26,7 +26,7 @@ class LoginController extends Controller{
         if (Auth::attempt(['email' => $usuario, 'password' => $senha])) {
             return response()->json([
                 'success' => true,
-                'redirectUrl' => route('home')
+                'redirectUrl' => route('form.marcas')
             ]);
         } else {
             return response()->json([

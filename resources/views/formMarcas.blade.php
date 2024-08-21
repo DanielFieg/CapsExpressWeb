@@ -36,18 +36,6 @@
           <ul id="sidebarnav">
             <li class="nav-small-cap">
               <i class="ti ti-dots nav-small-cap-icon fs-4"></i>
-              <span class="hide-menu">Home</span>
-            </li>
-            <li class="sidebar-item">
-              <a class="sidebar-link" href="{{ route('home') }}" aria-expanded="false">
-                <span>
-                  <i class="ti ti-layout-dashboard"></i>
-                </span>
-                <span class="hide-menu">Dashboard</span>
-              </a>
-            </li>
-            <li class="nav-small-cap">
-              <i class="ti ti-dots nav-small-cap-icon fs-4"></i>
               <span class="hide-menu">API PESQUISA</span>
             </li>
             <li class="sidebar-item">
@@ -140,16 +128,16 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="result in searchResults" :key="result.id">
-                      <td>@{{ result.link }}</td>
-                      <td>@{{ result.palavra_proibida }}</td>
+                    <tr v-for="(result, index) in searchResults" :key="result.link + '-' + index">
+                      <td><a :href="result.link" target="_blank">@{{ result.link }}</a></td>
+                      <td>@{{ result.palavra_proibida || 'Nenhuma' }}</td>
                     </tr>
                   </tbody>
-                </table>
+                </table>                
               </div>
               <button class="btn btn-primary" @click="exportToExcel">Exportar para Excel</button>
             </div>
-          </div>
+          </div>          
         </div>
       </div>
     </div>
@@ -166,7 +154,6 @@
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <!-- Load SheetJS -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
 
   <!-- Custom Script -->
   <script>
@@ -238,7 +225,6 @@
             });
         },
         submitSearch() {
-          // Verificar se uma marca foi selecionada
           if (!this.selectedMarca) {
             Swal.fire({
               title: 'Erro',
@@ -249,11 +235,10 @@
             return; // Impedir a execução da pesquisa
           }
 
-          // Impedir ações enquanto a pesquisa está em andamento
           if (this.loadingSearch) return;
 
-          this.loadingSearch = true; // Ativar o estado de carregamento
-          this.errorLimitReached = false; // Reiniciar a variável de erro
+          this.loadingSearch = true;
+          this.errorLimitReached = false;
 
           Swal.fire({
             title: 'Carregando...',
@@ -267,38 +252,36 @@
           });
 
           axios.get('/searchMarcas', {
-              params: {
-                id: this.selectedMarca.id,
-                marca: this.selectedMarca.marca
-              }
-            })
-            .then(response => {
-              if (response.data && Array.isArray(response.data)) {
-                this.searchResults = response.data; // Atualize a tabela com os resultados da pesquisa
-                this.noResultsMessage = ''; // Limpe a mensagem de não resultados
-                console.log(this.searchResults);
-              } else if (response.data && response.data.message) {
-                // Caso a API retorne uma mensagem de "Nenhum dado encontrado"
-                this.searchResults = []; // Limpe os resultados anteriores
-                this.noResultsMessage = response.data.message; // Exiba a mensagem de não resultados
-                console.log(response.data.message);
-              } else {
-                console.error('Resposta da API inválida:', response);
-              }
-            })
-            .catch(error => {
-              console.error('Erro ao obter marcas:', error);
-              if (error.response && error.response.status === 429) {
-                // Se o status for 429 (limite de pesquisas atingido), definir o erro
-                this.limitReachedMessage = 'Você atingiu o limite de 3 pesquisas por hora. Tente novamente mais tarde.';
-                this.searchButtonVisible = false; // Ocultar o botão de pesquisa
-              }
-            })
-            .finally(() => {
-              this.loadingSearch = false; // Desativar o estado de carregamento após a conclusão da pesquisa
-              Swal.close(); // Fechar o SweetAlert após a conclusão
-              document.body.classList.remove('block-ui');
-            });
+            params: {
+              id: this.selectedMarca.id,
+              marca: this.selectedMarca.marca
+            }
+          })
+          .then(response => {
+            if (response.data && Array.isArray(response.data)) {
+              // Exclui os resultados com "Nenhuma palavra proibida encontrada"
+              const filteredResults = response.data.filter(result => result.message !== 'Nenhuma palavra proibida encontrada');
+              this.searchResults = filteredResults;
+              this.noResultsMessage = filteredResults.length === 0 ? 'Nenhuma palavra proibida encontrada para a marca selecionada.' : ''; // Mensagem adequada para quando não há resultados
+            } else if (response.data && response.data.message) {
+              this.searchResults = [];
+              this.noResultsMessage = response.data.message;
+            } else {
+              console.error('Resposta da API inválida:', response);
+            }
+          })
+          .catch(error => {
+            console.error('Erro ao obter marcas:', error);
+            if (error.response && error.response.status === 429) {
+              this.limitReachedMessage = 'Você atingiu o limite de 3 pesquisas por hora. Tente novamente mais tarde.';
+              this.searchButtonVisible = false;
+            }
+          })
+          .finally(() => {
+            this.loadingSearch = false;
+            Swal.close();
+            document.body.classList.remove('block-ui');
+          });
         },
         exportToExcel() {
           const worksheet = XLSX.utils.json_to_sheet(this.searchResults);
