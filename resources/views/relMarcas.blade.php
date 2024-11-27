@@ -49,24 +49,34 @@
                     </a>
                     </li>
                     <li class="sidebar-item">
-                    <a class="sidebar-link" href="{{ route('rel.marcas') }}" aria-expanded="false">
-                        <span>
-                        <i class="ti ti-article"></i>
-                        </span>
-                        <span class="hide-menu">Relatório</span>
-                    </a>
-                    </li>
-                    <li class="nav-small-cap">
-                    <i class="ti ti-dots nav-small-cap-icon fs-4"></i>
-                    <span class="hide-menu">AUTH</span>
+                        <a class="sidebar-link" href="{{ route('rel.marcas') }}" aria-expanded="false">
+                            <span>
+                            <i class="ti ti-article"></i>
+                            </span>
+                            <span class="hide-menu">Relatório</span>
+                        </a>
                     </li>
                     <li class="sidebar-item">
-                    <a class="sidebar-link" href="{{ route('logout') }}" aria-expanded="false">
-                        <span>
-                        <i class="ti ti-login"></i>
-                        </span>
-                        <span class="hide-menu">Login</span>
-                    </a>
+                        @if (Auth::check() && Auth::user()->id == 1) <!-- Verifica se o usuário está autenticado e o id é 6 -->
+                            <a class="sidebar-link" href="{{ route('view.addUser') }}" aria-expanded="false">
+                                <span>
+                                    <i class="ti ti-user-plus"></i> <!-- Ícone de adicionar usuário -->
+                                </span>
+                                <span class="hide-menu">Cadastro de Usuários</span>
+                            </a>
+                        @endif
+                    </li>                    
+                    <li class="nav-small-cap">
+                        <i class="ti ti-dots nav-small-cap-icon fs-4"></i>
+                        <span class="hide-menu">AUTH</span>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ route('logout') }}" aria-expanded="false">
+                            <span>
+                            <i class="ti ti-login"></i>
+                            </span>
+                            <span class="hide-menu">Login</span>
+                        </a>
                     </li>
                 </ul>
                 </nav>
@@ -98,6 +108,9 @@
                                 <div class="card" v-if="resultado.length > 0">
                                     <div class="card-body">
                                         <h5 class="card-title fw-semibold mb-4">RESULTADOS</h5>
+                                        <div class="text-right">
+                                            <button @click="exportarExcel" class="btn btn-primary mb-4">Exportar para Excel</button>
+                                        </div>
                                         <div class="table-responsive">
                                             <table class="table table-bordered">
                                                 <thead>
@@ -116,7 +129,7 @@
                                                         <td>@{{ formatarDataEHora(result.created_at) }}</td>
                                                     </tr>
                                                 </tbody>
-                                            </table>
+                                            </table>             
                                         </div>
                                     </div>
                                 </div>
@@ -146,6 +159,7 @@
 </body>
 
 </html>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
     new Vue({
         el: '#relMarcas',
@@ -156,11 +170,11 @@
             listarConsultas() {
                 axios.get('/getMarcas')
                 .then(response => {
-                    // Verifique se a resposta tem dados válidos
                     if (response.data && Array.isArray(response.data)) {
-                        // Atribua os dados diretamente à propriedade resultado
-                        this.resultado = response.data;
-                        console.log(this.resultado);
+                        // Ordena os dados por data em ordem decrescente
+                        this.resultado = response.data.sort((a, b) => {
+                            return new Date(b.created_at) - new Date(a.created_at);
+                        });
                     } else {
                         console.error('Resposta da API inválida:', response);
                     }
@@ -170,11 +184,11 @@
                 });
             },
             formatarDataEHora(data) {
-                if (!data) return ''; // Retorna uma string vazia se data for nulo ou indefinido
+                if (!data) return '';
 
                 const dataObj = new Date(data);
                 if (isNaN(dataObj.getTime())) {
-                    return ''; // Retorna uma string vazia se a data não for válida
+                    return '';
                 }
 
                 const dia = dataObj.getDate().toString().padStart(2, '0');
@@ -185,6 +199,34 @@
                 const segundo = dataObj.getSeconds().toString().padStart(2, '0');
 
                 return `${dia}/${mes}/${ano} ${hora}:${minuto}:${segundo}`;
+            },
+            exportarExcel() {
+                if (!this.resultado || this.resultado.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Nenhum dado para exportar!',
+                        text: 'Realize uma busca antes de tentar exportar.',
+                    });
+                    return;
+                }
+
+                // Cria uma cópia dos resultados e formata as datas, mantendo apenas os dados visíveis na tabela
+                const resultadosFormatados = this.resultado.map(result => {
+                    return {
+                        Marca: result.marca,
+                        Link: result.link,
+                        'Palavra Proibida': result.palavra_proibida,
+                        Data: this.formatarDataEHora(result.created_at), // Formata created_at para o padrão brasileiro
+                    };
+                });
+
+                // Converte os resultados para uma planilha
+                const worksheet = XLSX.utils.json_to_sheet(resultadosFormatados);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
+
+                // Exporta o arquivo Excel
+                XLSX.writeFile(workbook, "ResultadoCompleto.xlsx");
             },
         },
         created() {

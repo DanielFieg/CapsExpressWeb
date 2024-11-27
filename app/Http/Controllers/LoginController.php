@@ -24,6 +24,7 @@ class LoginController extends Controller{
         ]);
     
         if (Auth::attempt(['email' => $usuario, 'password' => $senha])) {
+            $user = Auth::user();
             return response()->json([
                 'success' => true,
                 'redirectUrl' => route('form.marcas')
@@ -54,9 +55,12 @@ class LoginController extends Controller{
         ]);
     }
 
-    public function logout(){
+    public function logout() {
         Auth::logout();
-        return redirect()->route('login');
+        session()->flush(); // Limpa todos os dados da sessão
+    
+        return redirect('/')->with('message', 'Logout realizado com sucesso.');
     }
+    
     
 }

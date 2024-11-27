@@ -54,6 +54,16 @@
                 <span class="hide-menu">Relatório</span>
               </a>
             </li>
+            <li class="sidebar-item">
+              @if (Auth::check() && Auth::user()->id == 1) <!-- Verifica se o usuário está autenticado e o id é 6 -->
+                  <a class="sidebar-link" href="{{ route('view.addUser') }}" aria-expanded="false">
+                      <span>
+                          <i class="ti ti-user-plus"></i> <!-- Ícone de adicionar usuário -->
+                      </span>
+                      <span class="hide-menu">Cadastro de Usuários</span>
+                  </a>
+              @endif
+            </li>                    
             <li class="nav-small-cap">
               <i class="ti ti-dots nav-small-cap-icon fs-4"></i>
               <span class="hide-menu">AUTH</span>

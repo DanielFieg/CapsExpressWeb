@@ -4,12 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Marcas;
+use App\Models\User;
 use Symfony\Component\HttpFoundation\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\SearchResult;
-use App\Models\Clicks;
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessFailedException;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
@@ -44,7 +43,7 @@ class AdminController extends Controller
         Log::info("Marca: " . $marca);
     
         // Atualize o caminho para o Python se necessário
-        $command = escapeshellcmd("python scripts/extractorLink.py " . escapeshellarg($marca));
+        $command = escapeshellcmd("python scripts/ExtractorLinkByDuck.py " . escapeshellarg($marca));
         Log::info("Command: " . $command);
     
         $descriptorspec = [
@@ -54,22 +53,25 @@ class AdminController extends Controller
         ];
     
         $process = proc_open($command, $descriptorspec, $pipes);
+        Log::info($process);
     
         if (is_resource($process)) {
             fclose($pipes[0]);
             $output = stream_get_contents($pipes[1]);
+            Log::info("Raw JSON output: " . $output);
+
             fclose($pipes[1]);
     
             $errorOutput = stream_get_contents($pipes[2]);
+            Log::info($errorOutput);
             fclose($pipes[2]);
     
             $returnValue = proc_close($process);
-    
-            Log::info("Output: " . $output);
-            Log::info("Error Output: " . $errorOutput);
+            Log::info("Return Value: " . $returnValue);
     
             if ($returnValue === 0) {
                 $links = json_decode($output, true);
+                Log::info($links);
     
                 if (json_last_error() === JSON_ERROR_NONE) {
                     Log::info("Links: " . print_r($links, true));
@@ -79,25 +81,33 @@ class AdminController extends Controller
                         $linkUrl = $link['link'];
                         if (isset($link['error'])) {
                             Log::error("Erro no link: " . $link['error']);
+                            $rpaResults[] = [
+                                'link' => $linkUrl,
+                                'message' => 'Erro ao abrir o link. Verifique o URL ou tente novamente mais tarde.'
+                            ];
                             continue;
                         }
                         $rpaResult = $this->executeRpaForLink($linkUrl);
                         Log::info($rpaResult);
                         Log::info("Resultado na função dos links: " . print_r($rpaResult, true));
+    
                         if ($rpaResult['status'] === 'error') {
                             Log::error("Erro na função dos links: " . $rpaResult['message']);
+                            $rpaResults[] = [
+                                'link' => $linkUrl,
+                                'message' => 'Erro ao processar o link.'
+                            ];
                             continue;
                         }
                         $rpaResults = array_merge($rpaResults, $rpaResult['data']);
-
+    
                         // Salvar resultados individuais
                         foreach ($rpaResult['data'] as $result) {
-
                             if (isset($result['message']) && $result['message'] === 'Nenhuma palavra proibida encontrada') {
                                 // Não salvar este resultado no banco de dados
                                 continue;
                             }
-
+    
                             SearchResult::create([
                                 'marca' => $marca, // Certifique-se de que $data['marca'] está disponível
                                 'link' => $result['link'],
@@ -115,12 +125,12 @@ class AdminController extends Controller
                 Log::error("Erro ao executar o script Python: " . $errorOutput);
                 return response()->json(['error' => 'Erro ao processar a pesquisa de marcas'], 500);
             }
-    
         } else {
             Log::error("Falha ao iniciar o processo Python");
             return response()->json(['error' => 'Erro ao iniciar o processo Python'], 500);
         }
-    }    
+    }
+    
     
     private function executeRpaForLink($link) {
         $command = escapeshellcmd("python scripts/runLink.py " . escapeshellarg($link));
@@ -174,5 +184,39 @@ class AdminController extends Controller
     public function getMarcas(){
         return SearchResult::all();
     }
+
+    public function viewAddUser(){
+        Log::info(Auth::user()->id);
+        if (Auth::user()->id == '1') {
+            // O usuário é admin
+            return view('addUser');
+        } else {
+            // O usuário não é admin
+            abort(403, 'Acesso negado. Você não tem permissão para acessar esta página.');
+        }
+
+    }
+
+    public function getUsers(){
+        return User::all();
+    }
+
+    public function updateOrCreateUsers(Request $request, $id = null)
+    {
+        Log::info($request);
+        $data = $request;
+        $user = User::updateOrCreate(
+            ['id' => $id], // Se $id for null, irá criar um novo usuário
+            ['name' => $data['name'], 'email' => $data['usuario'], 'password' => bcrypt($data['senha'])]
+        );    
+    
+        return response()->json($user);
+    }
+
+    public function deleteUsers($id){
+        $user = User::find($id);
+        $user->delete();
+    }
+    
 
 }

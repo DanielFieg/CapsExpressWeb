@@ -17,4 +17,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/searchMarcas', [AdminController::class, 'searchMarcas'])->name('search.marcas');
     Route::get('/relatorio', [AdminController::class, 'relMarcas'])->name('rel.marcas');
     Route::get('/getMarcas', [AdminController::class, 'getMarcas'])->name('get.marcas');
+    Route::get('/viewUser', [AdminController::class, 'viewAddUser'])->name('view.addUser');
+    Route::get('/getUsers', [AdminController::class, 'getUsers'])->name('users.get');
+    Route::post('/updateOrCreateUsers/{id?}', [AdminController::class, 'updateOrCreateUsers'])->name('updateOrCreate.post');
+    Route::delete('/deleteUsers/{id}', [AdminController::class, 'deleteUsers'])->name('delete.post');
 });

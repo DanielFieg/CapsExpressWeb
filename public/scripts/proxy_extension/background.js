@@ -5,7 +5,7 @@
             singleProxy: {
                 scheme: "http",
                 host: "43.159.28.126",
-                port: parseInt("2333")
+                port: parseInt("2334")
             },
             bypassList: ["localhost"]
         }
