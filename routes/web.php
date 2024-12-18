@@ -12,6 +12,10 @@ Route::middleware(['auth'])->group(function () {
     // Rotas protegidas pelo middleware de autenticação
     Route::get('/apiMarcas', [AdminController::class, 'viewMarcas'])->name('form.marcas');
     Route::post('/addmarcas', [AdminController::class, 'createMarcas'])->name('create.marcas');
+    Route::get('/viewPalavrasProib', [AdminController::class, 'viewPalavrasProib'])->name('form.palavrasProib');
+    Route::get('/listPalavras', [AdminController::class, 'listPalavrasProib'])->name('list.palavrasProib');
+    Route::post('/addpalavra', [AdminController::class, 'createPalavra'])->name('create.palavras');
+    Route::delete('/deletePalavra/{id}', [AdminController::class, 'destroy']);
     Route::get('/listMarcas', [AdminController::class, 'listMarcas'])->name('list.marcas');
     Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/searchMarcas', [AdminController::class, 'searchMarcas'])->name('search.marcas');

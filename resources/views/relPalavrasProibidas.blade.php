@@ -110,42 +110,35 @@
                 <div class="container-fluid">
                     <div class="card">
                         <div class="card-body">
-                            <h5 class="card-title fw-semibold mb-4">RELATÓRIO DE PESQUISAS</h5>
-                            <div class="card">
-                                <!-- Tabela de Resultados -->
-                                <div class="card" v-if="resultado.length > 0">
-                                    <div class="card-body">
-                                        <h5 class="card-title fw-semibold mb-4">RESULTADOS</h5>
-                                        <div class="text-right">
-                                            <button @click="exportarExcel" class="btn btn-primary mb-4">Exportar para Excel</button>
-                                        </div>
-                                        <div class="table-responsive">
-                                            <table class="table table-bordered">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Marca</th>
-                                                        <th>Link</th>
-                                                        <th>Palavra Proibida</th>
-                                                        <th>Data</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr v-for="result in resultado" :key="result.id">
-                                                        <td>@{{ result.marca }}</td>
-                                                        <td><a :href="result.link" target="_blank">@{{ result.link }}</a></td>
-                                                        <td>@{{ result.palavra_proibida }}</td>
-                                                        <td>@{{ formatarDataEHora(result.created_at) }}</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>             
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="alert alert-warning" v-if="resultado.length === 0">
-                                    Nenhum resultado encontrado.
-                                </div>
+                            <h5 class="card-title fw-semibold mb-4 d-flex justify-content-between align-items-center">
+                                <span>PALAVRAS PROIBIDAS</span>
+                                <button @click.prevent="openNewPalavra" type="button" class="btn btn-primary ti ti-plus">
+                                    <i class="fa fa-search"></i>
+                                </button>
+                            </h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Palavras Proibidas</th>
+                                            <th>Excluir</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="result in resultado" :key="result.id">
+                                            <td>@{{ result.id }}</td>
+                                            <td>@{{ result.palavra_proibida }}</td>
+                                            <td>
+                                                <button @click="deletePalavra(result.id)" class="btn btn-danger btn-sm" style="margin-left: 10px;">
+                                                    <i class="ti ti-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>                                        
                             </div>
-                        </div>
+                        </div>                        
                     </div>
                 </div>
             </div>
@@ -175,13 +168,14 @@
             resultado: [], // Array para armazenar os resultados
         },
         methods: {
-            listarConsultas() {
-                axios.get('/getMarcas')
+            listarPalavrasProibidas() {
+                axios.get('/listPalavras')
                 .then(response => {
+                    console.log(response);
                     if (response.data && Array.isArray(response.data)) {
-                        // Ordena os dados por data em ordem decrescente
+                        // Ordena os dados pelo ID em ordem crescente
                         this.resultado = response.data.sort((a, b) => {
-                            return new Date(b.created_at) - new Date(a.created_at);
+                            return a.id - b.id; // Ordena por ID de forma crescente
                         });
                     } else {
                         console.error('Resposta da API inválida:', response);
@@ -191,54 +185,86 @@
                     console.error('Erro ao obter marcas:', error);
                 });
             },
-            formatarDataEHora(data) {
-                if (!data) return '';
+            openNewPalavra() {
+                Swal.fire({
+                    title: 'Cadastro de Palavra Proibida',
+                    text: 'Digite o nome da palavra proibida:',
+                    input: 'text',
+                    inputAttributes: {
+                        autocapitalize: 'off'
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Cadastrar',
+                    cancelButtonText: 'Cancelar',
+                    showLoaderOnConfirm: true,
+                    preConfirm: (palavra_proibida) => {
+                        if (!palavra_proibida || palavra_proibida.trim() === '') {
+                            Swal.showValidationMessage('Por favor, insira uma palavra proibida');
+                            return false;
+                        }
 
-                const dataObj = new Date(data);
-                if (isNaN(dataObj.getTime())) {
-                    return '';
-                }
-
-                const dia = dataObj.getDate().toString().padStart(2, '0');
-                const mes = (dataObj.getMonth() + 1).toString().padStart(2, '0');
-                const ano = dataObj.getFullYear();
-                const hora = dataObj.getHours().toString().padStart(2, '0');
-                const minuto = dataObj.getMinutes().toString().padStart(2, '0');
-                const segundo = dataObj.getSeconds().toString().padStart(2, '0');
-
-                return `${dia}/${mes}/${ano} ${hora}:${minuto}:${segundo}`;
-            },
-            exportarExcel() {
-                if (!this.resultado || this.resultado.length === 0) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Nenhum dado para exportar!',
-                        text: 'Realize uma busca antes de tentar exportar.',
-                    });
-                    return;
-                }
-
-                // Cria uma cópia dos resultados e formata as datas, mantendo apenas os dados visíveis na tabela
-                const resultadosFormatados = this.resultado.map(result => {
-                    return {
-                        Marca: result.marca,
-                        Link: result.link,
-                        'Palavra Proibida': result.palavra_proibida,
-                        Data: this.formatarDataEHora(result.created_at), // Formata created_at para o padrão brasileiro
-                    };
+                        return axios.post('/addpalavra', { palavra: palavra_proibida })
+                            .then(response => {
+ 
+                            })
+                            .catch(error => {
+                                // Verifica se o erro é devido à palavra já cadastrada
+                                console.log(error.response.data.message);
+                                if (error.response.data.message) {
+                                    Swal.showValidationMessage('Palavra já cadastrada.');
+                                } else {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Erro',
+                                        text: 'Ocorreu um erro desconhecido ao cadastrar a palavra.'
+                                    });
+                                }
+                            });
+                    },
+                    allowOutsideClick: () => !Swal.isLoading()
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire(
+                            'Palavra Proibida cadastrada!',
+                            'A palavra foi cadastrada com sucesso.',
+                            'success'
+                        );
+                        this.listarPalavrasProibidas();
+                    }
                 });
-
-                // Converte os resultados para uma planilha
-                const worksheet = XLSX.utils.json_to_sheet(resultadosFormatados);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
-
-                // Exporta o arquivo Excel
-                XLSX.writeFile(workbook, "ResultadoCompleto.xlsx");
             },
+            deletePalavra(id) {
+                Swal.fire({
+                    title: 'Tem certeza?',
+                    text: 'Você está prestes a deletar esta palavra proibida.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sim, deletar!',
+                    cancelButtonText: 'Cancelar',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        axios.delete(`/deletePalavra/${id}`)
+                            .then(response => {
+                                Swal.fire(
+                                    'Deletado!',
+                                    'A palavra proibida foi deletada com sucesso.',
+                                    'success'
+                                );
+                                this.listarPalavrasProibidas(); // Atualiza a lista de palavras proibidas
+                            })
+                            .catch(error => {
+                                Swal.fire(
+                                    'Erro',
+                                    'Não foi possível deletar a palavra proibida.',
+                                    'error'
+                                );
+                            });
+                    }
+                });
+            }
         },
         created() {
-            this.listarConsultas(); // Chama listarConsultas ao criar a instância Vue
+            this.listarPalavrasProibidas(); // Chama listarConsultas ao criar a instância Vue
         }
     });
   </script>

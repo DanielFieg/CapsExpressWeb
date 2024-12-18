@@ -2,6 +2,8 @@ import sys
 import json
 import re
 import pandas as pd
+import mysql.connector
+from mysql.connector import Error
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,37 +13,30 @@ from selenium.webdriver.common.by import By
 class Scrappy:
     def __init__(self, opcao_selecionada):
         self.opcao_selecionada = opcao_selecionada
-        self.palavras_proibidas = [
-            "Tratamento", "Garantido", "Sem riscos", "Efeito imediato",
-            "Aprovação Anvisa", "100% seguro", "Resultados permanentes", "Aprovado pela FDA",
-            "Clinicamente comprovado", "Milagroso", "Revolucionário", "Poderoso", "Instantâneo",
-            "Sem esforço", "Todos os naturais", "Sem efeitos colaterais", "Testado em laboratório",
-            "Pesquisa científica", "Fórmula exclusiva", "Detox", "Queima gordura", "Anti-idade",
-            "Aumenta a imunidade", "Sem contraindicações", "Absorção completa", "Bio-disponível",
-            "Sem aditivos", "Sem conservantes", "Nutricionista recomendado", "Médico aprovado",
-            "Fortalece os ossos", "Melhora a memória", "Antioxidante", "Supressor de apetite",
-            "Aumenta a energia", "Promove o sono", "Reduz o estresse", "Sem glúten", "Orgânico",
-            "Vegan", "Aumenta a libido", "Anticancerígeno", "Anti-inflamatório", "Regula a tireoide",
-            "Sem lactose", "Controla a diabetes", "Reduz o colesterol", "Promove a saúde do coração",
-            "Desintoxica o fígado", "Perda de peso rápida", "Efeito lifting", "Rejuvenescedor",
-            "Bloqueador de carboidratos", "Inibidor de apetite", "Remédio natural",
-            "Alternativa a medicamentos", "Cura natural", "Solução definitiva",
-            "Desempenho atlético superior", "Substituto de refeição", "Suplemento milagroso",
-            "Resultados em dias", "Elimina toxinas", "Sem necessidade de exercício",
-            "Aumenta a massa muscular", "Sem necessidade de dieta", "Resultados para toda a vida",
-            "Aprovação científica", "Reduz sintomas de", "Impulsionador de energia",
-            "Redução de estresse instantânea", "Alívio da dor natural", "Melhor que",
-            "Alternativa segura a cirurgias", "Reduz a pressão arterial", "Controla a ansiedade",
-            "Combate a depressão", "Impede o envelhecimento", "Previne doenças crônicas",
-            "Promove a saúde cerebral", "Fortalece o sistema imunológico",
-            "Reduz o risco de doenças cardíacas", "Controle de açúcar no sangue",
-            "Livre de efeitos colaterais negativos", "Pílula da beleza", "Solução antienvelhecimento",
-            "Efeito detox poderoso", "Reduz a fadiga", "Estimulante metabólico",
-            "Promove a saúde da pele", "Cápsula de bem-estar", "Melhora a saúde digestiva",
-            "Solução para insônia", "Reforço imunológico", "Potencializa a função cerebral",
-            "Supressor de fome", "Acelerador de metabolismo", "Elixir da juventude",
-            "Cápsula energética"
-        ]
+        self.palavras_proibidas = []  # Será preenchido dinamicamente
+        # Configuração do banco de dados
+        self.db_config = {
+            'host': '127.0.0.1',
+            'user': 'capsexpress',
+            'password': 'capsadmin',
+            'database': 'capsexpress',
+            'port': 3306
+        }
+        self.carregar_palavras_proibidas()  # Carregar as palavras do banco
+
+    def carregar_palavras_proibidas(self):
+        try:
+            conn = mysql.connector.connect(**self.db_config)
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM palavrasProibidas;")
+            self.palavras_proibidas = [row[1] for row in cursor.fetchall()]
+        except Error as e:
+            self.palavras_proibidas = []  # Evitar erros no processamento
+        finally:
+            if 'cursor' in locals():
+                cursor.close()
+            if 'conn' in locals():
+                conn.close()
 
     def iniciar(self):
         self.link = self.opcao_selecionada
@@ -52,7 +47,7 @@ class Scrappy:
         options = webdriver.ChromeOptions()
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
-        # options.add_argument('--headless')
+        options.add_argument('--headless')
 
         try:
             self.driver = webdriver.Chrome(options=options)
@@ -68,7 +63,6 @@ class Scrappy:
         except Exception as e:
             # Log the error instead of returning it
             log_message = f"Error accessing {link}: {self.tratar_erro(str(e))}"
-            print(log_message)  # Replace with your logging mechanism if needed
 
             # Return a structured result indicating no forbidden words found
             return json.dumps([{

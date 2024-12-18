@@ -8,6 +8,7 @@ use App\Models\User;
 use Symfony\Component\HttpFoundation\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\SearchResult;
+use App\Models\PalavrasProibidas;
 use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
@@ -29,6 +30,58 @@ class AdminController extends Controller
         return response()->json(['success' => true, 'message' => 'Marca cadastrada com sucesso!', 'marca' => $marca]);
     }
 
+    public function viewPalavrasProib(){
+        return view('relPalavrasProibidas');
+    }
+
+    public function listPalavrasProib(){
+        $palavrasProibidas = PalavrasProibidas::orderBy('id', 'asc')->get();
+        return $palavrasProibidas;
+    }
+
+    public function createPalavra(Request $request) {
+        // Validação da entrada
+        $validated = $request->validate([
+            'palavra' => 'required|string|max:255', // Ajuste a validação conforme necessário
+        ]);
+    
+        // Verifica se a palavra já existe no banco de dados
+        $palavraExistente = PalavrasProibidas::where('palavra_proibida', $request->input('palavra'))->first();
+    
+        if ($palavraExistente) {
+            // Retorna um erro se a palavra já estiver cadastrada
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta palavra proibida já está cadastrada!'
+            ], 400);
+        }
+    
+        // Criação do novo registro se a palavra não existir
+        $palavrasProibidas = PalavrasProibidas::create([
+            'palavra_proibida' => $request->input('palavra'),
+        ]);
+    
+        // Retorna uma resposta de sucesso
+        return response()->json([
+            'success' => true, 
+            'message' => 'Palavra Proibida cadastrada com sucesso!', 
+            'marca' => $palavrasProibidas
+        ]);
+    }
+
+    public function destroy($id){
+        $palavra = PalavrasProibidas::find($id);
+
+        if (!$palavra) {
+            return response()->json(['message' => 'Palavra não encontrada.'], 404);
+        }
+
+        $palavra->delete();
+
+        return response()->json(['message' => 'Palavra deletada com sucesso.']);
+    }
+
+
     public function listMarcas(){
         $marcas = Marcas::all();
         return $marcas;
@@ -43,7 +96,7 @@ class AdminController extends Controller
         Log::info("Marca: " . $marca);
     
         // Atualize o caminho para o Python se necessário
-        $command = escapeshellcmd("python scripts/ExtractorLinkByDuck.py " . escapeshellarg($marca));
+        $command = escapeshellcmd("python3 scripts/ExtractorLinkByDuck.py " . escapeshellarg($marca));
         Log::info("Command: " . $command);
     
         $descriptorspec = [
@@ -133,7 +186,7 @@ class AdminController extends Controller
     
     
     private function executeRpaForLink($link) {
-        $command = escapeshellcmd("python scripts/runLink.py " . escapeshellarg($link));
+        $command = escapeshellcmd("python3 scripts/runLink.py " . escapeshellarg($link));
     
         $descriptorspec = [
             0 => ["pipe", "r"],

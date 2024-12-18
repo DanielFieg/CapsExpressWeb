@@ -47,6 +47,14 @@
               </a>
             </li>
             <li class="sidebar-item">
+              <a class="sidebar-link" href="{{ route('form.palavrasProib') }}" aria-expanded="false">
+                <span>
+                  <i class="ti ti-lock"></i>
+                </span>
+                <span class="hide-menu">Palavras Proibidas</span>
+              </a>
+            </li>
+            <li class="sidebar-item">
               <a class="sidebar-link" href="{{ route('rel.marcas') }}" aria-expanded="false">
                 <span>
                   <i class="ti ti-article"></i>
@@ -109,7 +117,7 @@
                       <i class="fa fa-search"></i>
                     </button>
                     <div class="mb-3">
-                      <label for="disabledSelect" class="form-label">Selecione uma Marca</label>
+                      <label for="disabledSelect" class="form-label">Selecione:</label>
                       <select id="marcaSelect" class="form-select" v-model="selectedMarca">
                         <option value="">Selecione uma Marca</option>
                         <option v-for="marca in marcas" :key="marca.id" :value="marca">@{{ marca.marca }}</option>

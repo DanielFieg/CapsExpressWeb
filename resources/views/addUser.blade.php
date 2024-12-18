@@ -44,6 +44,14 @@
               </a>
             </li>
             <li class="sidebar-item">
+              <a class="sidebar-link" href="{{ route('form.palavrasProib') }}" aria-expanded="false">
+                <span>
+                  <i class="ti ti-lock"></i>
+                </span>
+                <span class="hide-menu">Palavras Proibidas</span>
+              </a>
+            </li>
+            <li class="sidebar-item">
               <a class="sidebar-link" href="{{ route('rel.marcas') }}" aria-expanded="false">
                 <span>
                   <i class="ti ti-article"></i>
